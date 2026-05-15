@@ -42,6 +42,16 @@ from open_webui.utils.images.comfyui import (
 )
 from pydantic import BaseModel
 
+class CreateImageForm(BaseModel):
+    model: Optional[str] = None
+    prompt: str
+    size: Optional[str] = None
+    n: int = 1
+    steps: Optional[int] = None
+    negative_prompt: Optional[str] = None
+
+GenerateImageForm = CreateImageForm
+
 log = logging.getLogger(__name__)
 
 IMAGE_CACHE_DIR = CACHE_DIR / 'image' / 'generations'
