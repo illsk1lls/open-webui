@@ -999,9 +999,10 @@ async def image_edits(
             return images
 
         elif request.app.state.config.IMAGE_GENERATION_ENGINE == 'comfyui':
-            log.info("=== [ComfyUI] Image generation via tool called ===")
-            log.info(f"model = {model}")
-            log.info(f"COMFYUI_WORKFLOW exists = {bool(request.app.state.config.COMFYUI_WORKFLOW)}")
+            log.info("[ComfyUI] Tool path triggered")
+
+            if not request.app.state.config.COMFYUI_WORKFLOW:
+                raise HTTPException(status_code=400, detail="ComfyUI workflow is not configured.")
 
             data = {
                 'prompt': form_data.prompt,
@@ -1016,9 +1017,10 @@ async def image_edits(
             if form_data.negative_prompt is not None:
                 data['negative_prompt'] = form_data.negative_prompt
 
-            log.info(f"Payload sent to ComfyUI: {data}")
+            final_model = model if model else None
+            log.info(f"[ComfyUI] final_model = {final_model}")
 
-            form_data = ComfyUICreateImageForm(
+            form = ComfyUICreateImageForm(
                 **{
                     'workflow': ComfyUIWorkflow(
                         **{
@@ -1029,9 +1031,10 @@ async def image_edits(
                     **data,
                 }
             )
+
             res = await comfyui_create_image(
-                model,
-                form_data,
+                final_model,
+                form,
                 str(uuid.uuid4()),
                 request.app.state.config.COMFYUI_BASE_URL,
                 request.app.state.config.COMFYUI_API_KEY,
