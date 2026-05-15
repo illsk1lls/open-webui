@@ -998,53 +998,43 @@ async def image_edits(
 
             return images
 
-        elif request.app.state.config.IMAGE_EDIT_ENGINE == 'comfyui':
-            try:
-                files = []
-                if isinstance(form_data.image, str):
-                    files = [get_image_file_item(form_data.image)]
-                elif isinstance(form_data.image, list):
-                    for img in form_data.image:
-                        files.append(get_image_file_item(img))
-
-                # Upload images to ComfyUI and get their names
-                comfyui_images = []
-                for file_item in files:
-                    res = await comfyui_upload_image(
-                        file_item,
-                        request.app.state.config.IMAGES_EDIT_COMFYUI_BASE_URL,
-                        request.app.state.config.IMAGES_EDIT_COMFYUI_API_KEY,
-                    )
-                    comfyui_images.append(res.get('name', file_item[1][0]))
-            except Exception as e:
-                log.debug(f'Error uploading images to ComfyUI: {e}')
-                raise Exception('Failed to upload images to ComfyUI.')
+        elif request.app.state.config.IMAGE_GENERATION_ENGINE == 'comfyui':
+            log.info("=== [ComfyUI] Image generation via tool called ===")
+            log.info(f"model = {model}")
+            log.info(f"COMFYUI_WORKFLOW exists = {bool(request.app.state.config.COMFYUI_WORKFLOW)}")
 
             data = {
-                'image': comfyui_images,
                 'prompt': form_data.prompt,
-                **({'width': width} if width is not None else {}),
-                **({'height': height} if height is not None else {}),
-                **({'n': form_data.n} if form_data.n else {}),
+                'width': width,
+                'height': height,
+                'n': form_data.n,
             }
 
-            form_data = ComfyUIEditImageForm(
+            if request.app.state.config.IMAGE_STEPS is not None or form_data.steps is not None:
+                data['steps'] = form_data.steps if form_data.steps is not None else request.app.state.config.IMAGE_STEPS
+
+            if form_data.negative_prompt is not None:
+                data['negative_prompt'] = form_data.negative_prompt
+
+            log.info(f"Payload sent to ComfyUI: {data}")
+
+            form_data = ComfyUICreateImageForm(
                 **{
                     'workflow': ComfyUIWorkflow(
                         **{
-                            'workflow': request.app.state.config.IMAGES_EDIT_COMFYUI_WORKFLOW,
-                            'nodes': request.app.state.config.IMAGES_EDIT_COMFYUI_WORKFLOW_NODES,
+                            'workflow': request.app.state.config.COMFYUI_WORKFLOW,
+                            'nodes': request.app.state.config.COMFYUI_WORKFLOW_NODES,
                         }
                     ),
                     **data,
                 }
             )
-            res = await comfyui_edit_image(
+            res = await comfyui_create_image(
                 model,
                 form_data,
                 str(uuid.uuid4()),
-                request.app.state.config.IMAGES_EDIT_COMFYUI_BASE_URL,
-                request.app.state.config.IMAGES_EDIT_COMFYUI_API_KEY,
+                request.app.state.config.COMFYUI_BASE_URL,
+                request.app.state.config.COMFYUI_API_KEY,
             )
             log.debug(f'res: {res}')
 
